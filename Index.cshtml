@@ -1,0 +1,51 @@
+@using SpaMvc3.Controllers
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>Welcome to my Single Page Application (using Mvc 3)</h1>
+        </hgroup>
+    </div>
+</section>
+}
+
+<script type='text/javascript'>
+
+    // Acme Request implementation..
+
+    acme.request.dataSources = acme.request.dataSources || {};
+
+    var contact = function () {
+    };
+
+    var mappingOptions = {
+        'contacts': {
+            'key': function (item) {
+                return ko.utils.unwrapObservable(item.contentId);
+            },
+            'create': contact
+        }
+    };
+
+    var options = {
+        providerParameters: { url: "/api/FirmsService/", operationName: "GetFirms" },     
+        entityType: "Firm",
+        mapping: mappingOptions
+    };
+
+    acme.request.dataSources.firms = new acme.request.OfflineCapableDataSource(options);
+
+</script> 
+
+<ol data-bind="foreach: firms">
+    <li>
+        <strong data-bind="text: FirmName"></strong>
+    </li>
+</ol>
+
+<script src="@Url.Content("~/Scripts/App/AcmeFirmsViewModel.js")" type="text/javascript"></script>
+<script type="text/javascript">
+    $(function () {
+        ko.applyBindings( new AcmeFirmsViewModel());
+    });
+</script>
