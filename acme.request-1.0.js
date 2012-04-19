@@ -4,13 +4,19 @@
 //
 // Tested with dependent libraries:
 //
-//  jQuery 1.7.1
+//  Modernizr.js 2.5.3
+//  jQuery.js 1.7.1
 //  knockout.js 2.0
-//  knockout.mapping 2.1
+//  knockout.mapping.js 2.1
+//  Amplify.store.js 1.0
 //
 
 (function (window, $, undefined) {
     var acme = window.acme || {};
+
+    function hasLocalStorage() {
+        return Modernizr.localstorage;
+    }
 
     function classof(o) {
         if (o === null) {
@@ -28,6 +34,7 @@
 
     acme.request = {}
 
+    acme.request.hasLocalStorage = hasLocalStorage;
     acme.request.classof = classof;
     acme.request.isArray = isArray;
 
@@ -58,9 +65,11 @@
 
     // OfflineCapableDataSource Class..
 
-    // TODO: Put the offline bits in here..
+    // FUTURE: Autorefresh feature
 
     OfflineCapableDataSource = function (options) {
+        var self = this;
+
         var mapping;
 
         if (options) {
@@ -74,6 +83,18 @@
 
         var dataProvider = new acme.request.DataProvider();
         this._dataContext = new acme.request.DataContext(dataProvider, mapping);
+        this._hasLocalStorage = acme.request.hasLocalStorage();
+        this._needsSync = false;
+        this._onLine = navigator.onLine;
+
+        // Register a listener for online offline events..
+        $(window).bind("online offline", function (event) {
+            self._onLine = navigator.onLine;
+
+            if (self._needsSync && self_onLine) {
+                self.refresh();
+            }
+        });
 
         this.getDataContext = function () {
             return this._dataContext;
@@ -81,7 +102,14 @@
 
         this._completeRefresh = function (entities, success) {
 
+            // Save the server entities to local storage..
+            if (this._hasLocalStorage) {
+                amplify.store.localStorage(this._entityType, ko.mapping.toJS(entities));
+            }
+
             this._entities = ko.mapping.fromJS(entities, {}, this._entities);
+
+            this._needsSync = false;
 
             var newEntities = this._entities();
 
@@ -101,6 +129,22 @@
     // Methods..
 
     OfflineCapableDataSource.prototype.refresh = function (options, success, error) {
+        var storedEntities;
+
+        // first, try to obtain entities from local storage..
+        if (this._hasLocalStorage) {
+            storedEntities = amplify.store.localStorage(this._entityType);
+
+            // Did we previously store the server entities?
+            if (storedEntities !== undefined)
+                this._entities = ko.mapping.fromJS(storedEntities, {}, this._entities);
+        }
+
+        if (!this._onLine) {
+            this._needsSync = true;
+            return this;
+        }
+
         var self = this,
             onSuccess = function (entities) {
                 self._completeRefresh(entities, success);
